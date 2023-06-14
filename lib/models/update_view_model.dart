@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class UpdateWidgetViewModel extends ChangeNotifier {
   int? currentPage;
+  List<String> rocketsList = [];
 
   UpdateWidgetViewModel();
 

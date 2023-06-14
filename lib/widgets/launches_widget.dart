@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../api_call.dart';
 import '../models/launches_model.dart';
+import '../models/rocket_model.dart';
 import '../models/update_view_model.dart';
 
 import 'package:url_launcher/url_launcher.dart';
@@ -17,7 +18,6 @@ class LaunchesList extends StatefulWidget {
 }
 
 class _LaunchesListState extends State<LaunchesList> {
-  late var launches = <LaunchesInfo>[];
   var launchesList = <int, List<LaunchesInfo>?>{
     0: null,
     1: null,
@@ -25,9 +25,17 @@ class _LaunchesListState extends State<LaunchesList> {
     3: null
   };
 
+  late Future responseFuture;
+  late int keyForList;
+
+  String rocketName = 'falcon1';
+  static final Future _rocketsFuture = getRocketsList();
+  late List<String> allRockets;
+
   @override
   void initState() {
     super.initState();
+    responseToRocketsList();
   }
 
   @override
@@ -39,41 +47,57 @@ class _LaunchesListState extends State<LaunchesList> {
     });
   }
 
+  void responseToRocketsList() async {
+    _rocketsFuture.then((value) {
+      setState(() {
+        Iterable list = json.decode(value.body);
+        allRockets =
+            list.map((model) => Rocket.fromJson(model).rocketId).toList();
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    late Future responseFuture;
-    var randomNumber = Random();
-    int? keyForList = UpdateViewProvider.of(context)?.currentPage ?? 0;
-    if (launchesList[keyForList] == null) {
-      responseFuture = getLaunchData(
-          limit: randomNumber.nextInt(10), offset: randomNumber.nextInt(10));
-    }
-    return launchesList[keyForList] == null
-        ? FutureBuilder(
-            future: responseFuture,
-            builder: (context, dataFromServer) {
-              switch (dataFromServer.connectionState) {
-                case ConnectionState.waiting:
-                  return const Expanded(
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFbafc54),
+    keyForList = UpdateViewProvider.of(context)?.currentPage ?? 0;
+    rocketName = allRockets[keyForList];
+    print(rocketName);
+    responseFuture = getLaunchData(rocketId: rocketName);
+    return FutureBuilder(
+        future: responseFuture,
+        builder: (context, dataFromServer) {
+          switch (dataFromServer.connectionState) {
+            case ConnectionState.waiting:
+              return const Expanded(
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFFbafc54),
+                  ),
+                ),
+              );
+            case ConnectionState.done:
+              responseToLaunchesList(
+                  dataFromServer.data.body, keyForList, launchesList);
+              return launchesList[keyForList]?.isEmpty == true
+                  ? Expanded(
+                      child: Center(
+                        child: Text(
+                          textAlign: TextAlign.center,
+                          "There's no lauches for $rocketName in database",
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 24),
+                        ),
                       ),
-                    ),
-                  );
-                case ConnectionState.done:
-                  responseToList(dataFromServer.data.body, keyForList, launches,
-                      launchesList);
-                  return modelToContent(launchesList[keyForList], context);
-                default:
-                  final error = dataFromServer.error;
-                  return Text(
-                    '$error',
-                    style: const TextStyle(color: Colors.white, fontSize: 32),
-                  );
-              }
-            })
-        : modelToContent(launchesList[keyForList], context);
+                    )
+                  : modelToContent(launchesList[keyForList], context);
+            default:
+              final error = dataFromServer.error;
+              return Text(
+                '$error',
+                style: const TextStyle(color: Colors.white, fontSize: 32),
+              );
+          }
+        });
   }
 }
 
@@ -87,10 +111,9 @@ openInBrowser(String urlRaw) async {
   }
 }
 
-responseToList(dynamic data, int keyForList, List<LaunchesInfo> launches,
-    Map<int, List<LaunchesInfo>?> launchesList) {
+responseToLaunchesList(
+    dynamic data, int keyForList, Map<int, List<LaunchesInfo>?> launchesList) {
   Iterable list = json.decode(data);
-  launches = list.map((model) => LaunchesInfo.fromJson(model)).toList();
   launchesList[keyForList] =
       list.map((model) => LaunchesInfo.fromJson(model)).toList();
 }

@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
+import '../api_call.dart';
+import '../models/launch_images_model.dart';
+import '../models/rocket_model.dart';
 import '../models/update_view_model.dart';
 
 class Carousel extends StatefulWidget {
@@ -16,21 +21,15 @@ class _CarouselState extends State<Carousel> {
   );
 
   int _currentPage = 0;
+  List<ImageModel> allImageLinks = [];
+  final List<Widget> _pages = [];
+  static final Future _imagesFuture = getLaunchImages();
 
-  final List<Widget> _pages = [
-    carouselBanner(
-        imageUrl:
-            'https://robbreport.com/wp-content/uploads/2022/11/AS_Fgfe627VsAAJ9nQ.jpg?w=1000'),
-    carouselBanner(
-        imageUrl:
-            'https://vctr.media/wp-content/uploads/2022/01/vctr.media-1643279011.jpg'),
-    carouselBanner(
-        imageUrl:
-            'https://s.abcnews.com/images/US/spacex-launch-rt-jef-230420_1682026636924_hpMain_4x3_992.jpg'),
-    carouselBanner(
-        imageUrl:
-            'https://gdb.rferl.org/4ae254bc-e791-4fdc-8286-05d313c1ffc8_w1080_h608.jpg'),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    responseToLaunchesImages();
+  }
 
   @override
   void dispose() {
@@ -77,6 +76,24 @@ class _CarouselState extends State<Carousel> {
             controller: _controller),
       ],
     );
+  }
+
+  void responseToLaunchesImages() async {
+    _imagesFuture.then((value) {
+      setState(() {
+        Iterable list = json.decode(value.body);
+        allImageLinks =
+            list.map((model) => ImageModel.fromJson(model)).toList();
+        for (ImageModel item in allImageLinks) {
+          if (item.imageLinks.length == 4) {
+            for (String singleImage in item.imageLinks) {
+              _pages.add(carouselBanner(imageUrl: singleImage));
+            }
+            break;
+          }
+        }
+      });
+    });
   }
 }
 
